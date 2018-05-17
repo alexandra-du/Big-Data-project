@@ -87,4 +87,4 @@ Temporary conclusions:
 - Maintenance price: if very high, results in "unacc" or "acc", but some cars with "high" maintenance price (sign of a good quality?) are "very good"
 - Number of doors: irrelevant in determining value at first glance because the proportions of unacc, acc, good and vgood seem to not depend on the number of doors
 - Max number of passengers: "2 people" means a car that is too small --> unacc. Indifferent between 4 people or more
-- Size of luggage loot: not very relevant but a small loot cannot result in "very good"
+- Size of luggage loot: not very relevant but a small loot size cannot result in "very good"
