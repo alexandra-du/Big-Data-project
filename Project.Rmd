@@ -1,0 +1,90 @@
+---
+title: "Big Data project"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+setwd("/Users/dua/Documents/Big Data Analytics/Project")
+library("ggplot2")
+library(readxl)
+```
+
+#1) Energy efficiency data set 
+https://archive.ics.uci.edu/ml/datasets/energy+efficiency#
+
+
+```{r}
+data2<-read_excel("energy_data.xlsx", sheet = 1, col_names = TRUE)
+colnames(data2)=c("rel.compact", "surface", "wall.area","roof.area","height","orientation","glazing","glazing.distribution","heating.load","cooling.load")
+data2[0:10,]
+
+p<-ggplot(data2,aes(x=roof.area,y=heating.load))+geom_point(aes(colour=orientation), position="jitter")
+p
+```
+
+#2) Car evaluation data set
+http://archive.ics.uci.edu/ml/datasets/Car+Evaluation
+
+
+```{r}
+data<- read.table("car.data", sep="," , header=T)
+colnames(data) <- c("Buying_price", "Maintenance_price", "Doors", "Persons", "Lug_boot", "Safety","Value")
+data[0:10,]
+```
+
+Description des variables: 
+- Buying price and maintenance price: low, med, high, very high
+- Number of doors: 2, 3, 4, 5 or more
+- Max number of people: 2, 4, or more
+- Size of luggage boot: small, medium, big
+- Safety index: low, medium, high
+
+- Value of car: what we are trying to predict. Unacceptable, acceptable, good, very good
+
+```{r}
+summary(data)
+
+#Reorder the variable scales from low to high
+data$Buying_price<-factor(data$Buying_price, levels=c("low","med","high","vhigh"))
+data$Maintenance_price<-factor(data$Maintenance_price, levels=c("low","med","high","vhigh"))
+data$Value<-factor(data$Value, levels=c("unacc","acc","good","vgood"))
+data$Lug_boot<-factor(data$Lug_boot, levels=c("small","med","big"))
+data$Safety<-factor(data$Safety, levels=c("low","med","high"))
+```
+
+```{r}
+#Roughly explore the influence of each parameter on the Value
+graph<-ggplot(data,aes(x=Safety,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Buying_price,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Maintenance_price,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Doors,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Persons,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Lug_boot,y=Value))+geom_point(position = "jitter")
+graph
+```
+Temporary conclusions: 
+
+- Safety is a quite important factor: a low safety automatically results in "Unacceptable"
+- Buying price: if high or very high, results in "unacc" or "acc" at best
+- Maintenance price: if very high, results in "unacc" or "acc", but some cars with "high" maintenance price (sign of a good quality?) are "very good"
+- Number of doors: irrelevant in determining value at first glance because the proportions of unacc, acc, good and vgood seem to not depend on the number of doors
+- Max number of passengers: "2 people" means a car that is too small --> unacc. Indifferent between 4 people or more
+- Size of luggage loot: not very relevant but a small loot cannot result in "very good"
