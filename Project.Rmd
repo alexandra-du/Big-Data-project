@@ -15,19 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 setwd("/Users/dua/Documents/Big Data Analytics/Project")
 library("ggplot2")
 library(readxl)
-```
-
-#1) Energy efficiency data set 
-https://archive.ics.uci.edu/ml/datasets/energy+efficiency#
-
-
-```{r}
-data2<-read_excel("energy_data.xlsx", sheet = 1, col_names = TRUE)
-colnames(data2)=c("rel.compact", "surface", "wall.area","roof.area","height","orientation","glazing","glazing.distribution","heating.load","cooling.load")
-data2[0:10,]
-
-p<-ggplot(data2,aes(x=roof.area,y=heating.load))+geom_point(aes(colour=orientation), position="jitter")
-p
+library(naivebayes)
 ```
 
 #2) Car evaluation data set
@@ -89,3 +77,38 @@ Temporary conclusions:
 - Max number of passengers: "2 people" means a car that is too small --> unacc. Indifferent between 4 people or more
 - Size of luggage loot: not very relevant but a small loot size cannot result in "very good"
 - other comments
+
+```{r}
+#To see how the data is distributed (proportions)
+naive_bayes(data,data$Doors)
+```
+
+```{r}
+#Logistic regression: Model that includes Lug_boot size and safety in predicting the Value
+
+glmfit<-glm(Value~Lug_boot + Safety,family=binomial)
+proba <- predict(glmfit,type="response")
+
+#value2<-as.numeric(Value)
+#lugboot <- as.numeric(Lug_boot)
+#curve <- data.frame(value2,proba,Lug_boot)
+#ggplot(curve,aes(Lug_boot,proba))+geom_point(position="jitter")+ #geom_point(aes(x=Lug_boot,y=value2),color="orange")
+
+summary(glmfit)
+
+```
+
+
+```{r}
+#Model that includes all the parameters in predicting the Value
+
+glmfit<-glm(Value~Safety + Persons + Buying_price + Doors + Maintenance_price + Lug_boots,family=binomial)
+proba <- predict(glmfit,type="response")
+
+summary(glmfit)
+
+```
+
+Conclusions: 
+Number of doors totally irrelevant (p-value is too large)
+It appears that safety is irrelevant (p-value too large). Why??
