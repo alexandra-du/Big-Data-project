@@ -1,0 +1,171 @@
+---
+title: "Project bis"
+output: html_document
+---
+
+```{r}
+setwd("/Users/dua/Documents/Big Data Analytics/Project")
+library("ggplot2")
+library(readxl)
+library(naivebayes)
+```
+
+Data source: https://vincentarelbundock.github.io/Rdatasets/doc/DAAG/spam7.html 
+
+```{r}
+data<- read.csv("spam.csv", sep="," , header=T)
+colnames(data)<- c("ID","Capitals","Dollar.sign","Excl.sign","Freq.money","Freq.000","Freq.make","Spam")
+
+summary(data)
+
+```
+
+```{r}
+#Plot the influence of each attribute on the Response (spam yes or no)
+
+graph<-ggplot(data,aes(x=Capitals,y=Spam))+geom_point(aes(colour=Spam),position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Dollar.sign,y=Spam))+geom_point(aes(colour=Spam),position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Excl.sign,y=Spam))+geom_point(aes(colour=Spam),position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Freq.money,y=Spam))+geom_point(aes(colour=Spam),position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Freq.000,y=Spam))+geom_point(aes(colour=Spam),position = "jitter")
+graph
+
+graph<-ggplot(data,aes(x=Freq.make,y=Spam))+geom_point(aes(colour=Spam),position = "jitter")
+graph
+```
+
+```{r}
+naive_bayes(data,Spam)
+```
+
+```{r}
+#Plot the distributions of the attributes (check for normality and maybe remove outliers)
+
+p <- ggplot(data, aes(Capitals)) + geom_histogram(aes(y=..density..), colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666")
+p
+
+p <- ggplot(data, aes(Dollar.sign)) + geom_histogram(aes(y=..density..), colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666")
+p
+
+p <- ggplot(data, aes(Excl.sign)) + geom_histogram(aes(y=..density..), colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666")
+p
+
+p <- ggplot(data, aes(Freq.000)) + geom_histogram(aes(y=..density..), colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666")
+p
+
+p <- ggplot(data, aes(Freq.make)) + geom_histogram(aes(y=..density..), colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666")
+p
+
+p <- ggplot(data, aes(Freq.money)) + geom_histogram(aes(y=..density..), colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666")
+p
+```
+
+```{r}
+#Generate randomly the training data and the test data
+set.seed(1)
+size.dtrain<-floor(0.55*nrow(data)) #we take 55% of the data as training data
+size.dtest<-nrow(data)-size.dtrain
+index.train <- sample(1:nrow(data),size.dtrain,replace=FALSE) 
+
+dtrain<-data[index.train,]
+dtest<-data[-index.train,] #the remaining 45% are test data
+
+attach(dtrain)
+```
+
+From now on we model based on the training set.
+```{r}
+#Model that includes all relevant parameters in predicting the Response (ie significant p-value)
+
+glmfit<-glm(Spam~ Capitals + Dollar.sign + Excl.sign + Freq.000 + Freq.money, family=binomial,data=dtrain)
+
+proba <- predict(glmfit,type="response") #proba is the vector that assigns to each email the probability that it is a spam
+
+# Plot the distribution of proba
+dataframe<-data.frame(proba)
+
+p <- ggplot(dataframe, aes(proba)) + geom_histogram(aes(y=..density..), colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666")
+p
+
+summary(glmfit)
+
+```
+All attributes have relevant p-values except Freq.money
+The probability that an email will be a spam is 0.3949 (on the training set)
+
+
+```{r}
+
+#Function that returns the vector with associates to each email its predicted Response, depending on the chosen threshold p for the probability:
+
+result.table<-function(p,dataset){
+  glm.probs=predict(glmfit,type="response",dataset)
+  glm.pred = rep(0,nrow(dataset)) # creates a vector of "size" times 0 elements 
+  glm.pred[glm.probs>=p]=1 #transforms to 1 all of the elements for which the predicted probability is larger than the threshold p
+  return(glm.pred)
+}
+
+
+#Function that optimizes the choice of the threshold probability:
+
+optim<-function(interval){ #the function will calculate the precision for each threshold probability from 0 to 1, by intervals equal to the parameter "interval"
+  results<-list()
+  pbis=0
+  while (pbis<1){
+   
+    confusion.matrix=table(result.table(pbis,dtrain),Spam)
+    precision=sum(diag(confusion.matrix))/size.dtrain
+    results=c(results,list(c(pbis,precision)))
+    pbis=pbis+interval
+  }
+  
+  d<-as.data.frame(results)
+  return(d) #the function returns a data frame containing threshold probabilities and their associated precisions
+}
+
+
+q<-optim(0.01)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("Threshold.probablity","Precision")
+rownames(q)<-c()
+
+#Plot the Precision as function of threshold probability
+ggplot(q, aes(x=Threshold.probablity, y=Precision)) + geom_point(position = "jitter")
+
+#Extracting the maximum precision and its associated threshold probability
+qbis<-subset(q, (q$Precision==max(q$Precision)))
+qbis
+```
+
+
+```{r}
+#Draw the confusion matrix knowing the threshold probability that optimizes the precision
+confusion.matrix<-table(result.table(0.34),Spam)
+confusion.matrix
+
+precision=sum(diag(confusion.matrix))/size.dtrain
+precision
+```
+A precision of 85.4% can be obtained on the training set.
+
+```{r}
+#Determine the precision on the test set
+
+confusion.matrix.test<-table(result.table(max(q$Precision),dtest),dtest$Spam)
+confusion.matrix.test
+
+precision.test=sum(diag(confusion.matrix.test))/size.dtest
+precision.test
+```
+
