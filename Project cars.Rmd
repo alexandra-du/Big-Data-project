@@ -50,11 +50,9 @@ data$Lug_boot<-factor(data$Lug_boot, levels=c("small","med","big"))
 data$Safety<-factor(data$Safety, levels=c("low","med","high"))
 
 data2 <-subset(data, (data$Doors!=4 | data$Persons!=2) & (data$Doors!="5more" | data$Persons!=2))
+#Data2 est notre base de données après nettoyage des valeurs incohérentes
 
-data2$Persons2<-(data2$Persons==2)
-data2$Persons4<-(data2$Persons==4)
-data2$Personsmore<-(data2$Persons=="more")
-
+#Séparation des variables catégoriques (intérêt : ne sélectionner que les catégories qui auront une petite p-valeur dans le modèle glm
 data2$Doors2<-(data2$Doors==2)
 data2$Doors3<-(data2$Doors==3)
 data2$Doors4<-(data2$Doors==4)
@@ -70,13 +68,8 @@ data2$Maintenance_price_med<-(data2$Maintenance_price=="med")
 data2$Maintenance_price_high<-(data2$Maintenance_price=="high")
 data2$Maintenance_price_vhigh<-(data2$Maintenance_price=="vhigh")
   
-data3<- subset(data2, data2$Buying_price!="med" & data2$Maintenance_price!="med")
-
-#attach(data2)
-#attach(data3)
 summary(data2)
 
-data3$value2<-as.numeric(data3$Value)
 data2$value2<-as.numeric(data2$Value)
 
 ```
@@ -154,14 +147,14 @@ summary(glmfit)
 
 ```
 Conclusions: 
-Number of doors totally irrelevant (p-value is too large)
+Number of people totally irrelevant (p-value is too large)
 It appears that safety is irrelevant (p-value too large). Why??
 ```{r}
 
 #Function that returns the vector with associates to each car its predicted Value, depending on the chosen thresholds for the probabilities
-result.table<-function(p1,p2,p3,data){
-  glm.probs=predict(glmfit,type="response",data)
-  glm.pred = rep(1,nrow(data))# creates a vector of 1 elements 
+result.table<-function(p1,p2,p3,dframe){
+  glm.probs=predict(glmfit,type="response",dframe)
+  glm.pred = rep(1,nrow(dframe))# creates a vector of 1 elements 
   glm.pred[glm.probs>=p1]=4 #transforms to 1 all of the elements for which th e predicted
   glm.pred[(glm.probs>=p2) & (glm.probs<p1)]=3
   glm.pred[glm.probs>=p3 & glm.probs<p2]=2
@@ -170,7 +163,7 @@ result.table<-function(p1,p2,p3,data){
 }
 
 
-optim<-function(p1,p2,p3,interval,data){
+optim<-function(p1,p2,p3,interval,dframe){
   results<-list()
   p1bis=p1
   while(p1bis<1){
@@ -178,8 +171,8 @@ optim<-function(p1,p2,p3,interval,data){
     while (p2bis<p1bis){
       p3bis=p3
       while (p3bis<p2bis) {
-        confusion.matrix=table(result.table(p1bis,p2bis,p3bis,data),data$value2)
-        precision=sum(diag(confusion.matrix))/nrow(data)
+        confusion.matrix=table(result.table(p1bis,p2bis,p3bis,data),dframe$value2)
+        precision=sum(diag(confusion.matrix))/nrow(dframe)
         results=c(results,list(c(p1bis,p2bis,p3bis,precision)))
         p3bis=p3bis+interval
       }
@@ -209,6 +202,7 @@ nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
 ```
 
 ```{r}
+#Plot interactive 3D graph of p1 p2 p3 and precision
 p <- plot_ly(dtrain, x = ~q$p1, y = ~q$p2, z = ~q$Precision,
         marker = list(color = ~q$p3, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE))
          
