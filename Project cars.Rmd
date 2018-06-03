@@ -18,6 +18,8 @@ library(naivebayes)
 library(plotly)
 library(shiny)
 library(reshape)
+library(lda)
+library(MASS)
 ```
 
 #2) Car evaluation data set
@@ -123,6 +125,7 @@ Plot histogram because many points may be overlapped
 naive_bayes(data2,data2$Lug_boot)
 ```
 
+
 ```{r}
 #Generate randomly the training data and the test data
 set.seed(3)
@@ -156,6 +159,25 @@ summary(glmfit)
 Conclusions: 
 Number of doors totally irrelevant (p-value is too large)
 It appears that safety is irrelevant (p-value too large). Why??
+
+```{r}
+# quadratic discriminant Analysis (QDA)
+
+qda.model<-qda(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh + Doors5+ Doors4 + Lug_boot,data=dtrain)
+
+```
+
+```{r}
+# Linear discriminant Analysis (LDA)
+
+lda.model<-lda(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh + Doors5+ Doors4 + Lug_boot,data=dtrain)
+lda.model
+predmodel.train.lda<-predict(lda.model, type="response")
+summary(predmodel.train.lda)
+
+
+```
+
 
 ```{r}
 #See the correlation matrix
