@@ -160,24 +160,6 @@ Conclusions:
 Number of doors totally irrelevant (p-value is too large)
 It appears that safety is irrelevant (p-value too large). Why??
 
-```{r}
-# quadratic discriminant Analysis (QDA)
-
-qda.model<-qda(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh + Doors5+ Doors4 + Lug_boot,data=dtrain)
-
-```
-
-```{r}
-# Linear discriminant Analysis (LDA)
-
-lda.model<-lda(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh + Doors5+ Doors4 + Lug_boot,data=dtrain)
-lda.model
-predmodel.train.lda<-predict(lda.model, type="response")
-summary(predmodel.train.lda)
-
-
-```
-
 
 ```{r}
 #See the correlation matrix
@@ -305,3 +287,36 @@ summary(data3)
 nrow(data3)
 ```
 
+```{r}
+# quadratic discriminant Analysis (QDA)
+
+qda.model<-qda(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh + Doors5+ Doors4 + Lug_boot,data=dtrain)
+
+```
+
+```{r}
+# Linear discriminant Analysis (LDA)
+
+lda.model<-lda(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh + Doors5+ Doors4 + Lug_boot,data=dtrain)
+lda.model
+predmodel.train.lda<-predict(lda.model, type="response")
+summary(predmodel.train.lda)
+
+```
+
+```{r}
+# Linear discriminant Analysis (LDA) by Alex
+
+lda.model<-lda(value2~ Buying_price + Maintenance_price + Safety + Doors + Persons + Lug_boot,data=data2)
+lda.model
+plot(lda.model, pch = 20, col = as.integer(data2$value2))
+lda.pred = predict (lda.model,data2)
+confusion_matrix_lda<-table(lda.pred$class,data2$Value)
+confusion_matrix_lda
+sum(diag(confusion_matrix_lda))/nrow(data2) #precision
+```
+For LDA: Precision if all variables: 0.878
+Without Safety:0.65
+Without safety and persons: 0.64
+without persons: 0.805
+same variables as glm: 0.648
