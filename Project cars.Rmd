@@ -43,6 +43,30 @@ Description des variables:
 
 - Value of car: what we are trying to predict. Unacceptable, acceptable, good, very good
 
+
+```{r}
+#See the correlation matrix to see influence of each feature to one another
+datamat<-data.frame(data$Buying_price,data$Maintenance_price,data$Doors,data$Persons,data$Lug_boot,data$Safety)
+
+datamat$Buying_price<-as.numeric(data$Buying_price)
+datamat$Maintenance_price<-as.numeric(data$Maintenance_price)
+datamat$Lug_boot<-as.numeric(data$Lug_boot)
+datamat$Safety<-as.numeric(data$Safety)
+datamat$Doors<-as.numeric(datamat$data.Doors)
+datamat$Persons<-as.numeric(data$Persons)
+
+datamatnumeric<-data.frame(datamat$Buying_price,datamat$Maintenance_price,datamat$Doors,datamat$Persons,datamat$Lug_boot,datamat$Safety)
+
+cormat.test<-round(cor(datamatnumeric),2)
+head(cormat.test)
+
+melted_cormat.test <- melt(cormat.test)
+head(melted_cormat.test)
+
+ggplot(data = melted_cormat.test, aes(x=X1, y=X2, fill=value)) + 
+  geom_tile()
+```
+
 ```{r}
 #Reorder the variable scales from low to high
 data$Buying_price<-factor(data$Buying_price, levels=c("low","med","high","vhigh"))
@@ -80,6 +104,23 @@ summary(data2)
 
 data3$value2<-as.numeric(data3$Value)
 data2$value2<-as.numeric(data2$Value)
+
+```
+
+```{r}
+
+#Correlation matrix with the initial categories
+data3 <-subset(data, (data$Doors!=4 | data$Persons!=2) & (data$Doors!="5more" | data$Persons!=2))
+
+numerica<-data.frame(as.numeric(data3$Buying_price),as.numeric(data3$Maintenance_price),as.numeric(data3$Doors),as.numeric(data3$Persons),as.numeric(data3$Safety),as.numeric(data3$Lug_boot))
+cormat.test<-round(cor(numerica),2)
+head(cormat.test)
+
+melted_cormat.test <- melt(cormat.test)
+head(melted_cormat.test)
+
+ggplot(data = melted_cormat.test, aes(x=X1, y=X2, fill=value)) + 
+  geom_tile()
 
 ```
 Nb of rows in data2: 1439
@@ -122,7 +163,7 @@ Plot histogram because many points may be overlapped
 
 ```{r}
 #To see how the data is distributed (proportions)
-naive_bayes(data2,data2$Lug_boot)
+naive_bayes(data2,data2$Value)
 ```
 
 
@@ -161,30 +202,7 @@ Number of doors totally irrelevant (p-value is too large)
 It appears that safety is irrelevant (p-value too large). Why??
 
 
-```{r}
-#See the correlation matrix
-dtrain.mat<-data.frame(dtrain$Buying_price_high,dtrain$Buying_price_vhigh,dtrain$Maintenance_price_high,dtrain$Maintenance_price_vhigh,dtrain$Doors5,dtrain$Doors4,dtrain$Lug_boot,dtrain$value2)
 
-dtrain.mat$Buying_price_high2<-as.numeric(dtrain.mat$dtrain.Buying_price_high)
-dtrain.mat$Buying_price_vhigh2<-as.numeric(dtrain.mat$dtrain.Buying_price_vhigh)
-dtrain.mat$Maintenance_price_high2<-as.numeric(dtrain.mat$dtrain.Maintenance_price_high)
-dtrain.mat$Maintenance_price_vhigh2<-as.numeric(dtrain.mat$dtrain.Maintenance_price_vhigh)
-dtrain.mat$Doors5.2<-as.numeric(dtrain.mat$dtrain.Doors5)
-dtrain.mat$Doors4.2<-as.numeric(dtrain.mat$dtrain.Doors4)
-dtrain.mat$Lug_boot2<-as.numeric(dtrain.mat$dtrain.Lug_boot)
-
-dtrain.mat.numeric<-data.frame(dtrain.mat$Buying_price_high2,dtrain.mat$Buying_price_vhigh2,dtrain.mat$Maintenance_price_high2,dtrain.mat$Maintenance_price_vhigh2,dtrain.mat$Doors5.2,dtrain.mat$Doors4.2,dtrain.mat$Lug_boot2,dtrain.mat$dtrain.value2)
-
-cormat.test<-round(cor(dtrain.mat.numeric),2)
-head(cormat.test)
-
-melted_cormat.test <- melt(cormat.test)
-head(melted_cormat.test)
-
-ggplot(data = melted_cormat.test, aes(x=X1, y=X2, fill=value)) + 
-  geom_tile()
-
-```
 
 ```{r}
 
