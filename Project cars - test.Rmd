@@ -1,0 +1,380 @@
+---
+title: "Big Data project"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library("ggplot2")
+library(readxl)
+library(naivebayes)
+library(plotly)
+library(shiny)
+library(reshape)
+library(lda)
+library(MASS)
+```
+
+#2) Car evaluation data set
+
+http://archive.ics.uci.edu/ml/datasets/Car+Evaluation
+
+
+```{r}
+#data general
+data<- read.csv(file.choose(), sep="," , header=T)
+colnames(data) <- c("Buying_price", "Maintenance_price", "Doors", "Persons", "Lug_boot", "Safety","Value")
+levels(data$Doors)
+
+```
+
+```{r}
+#data example
+dataex<-read.csv(file.choose(),sep="," , header=F)
+colnames(dataex) <- c("Buying_price", "Maintenance_price", "Doors", "Persons", "Lug_boot", "Safety","Value")
+levels(data$Doors)
+
+```
+Description des variables: 
+- Buying price and maintenance price: low, med, high, very high
+- Number of doors: 2, 3, 4, 5 or more
+- Max number of people: 2, 4, or more
+- Size of luggage boot: small, medium, big
+- Safety index: low, medium, high
+
+- Value of car: what we are trying to predict. Unacceptable, acceptable, good, very good
+
+```{r}
+#Reorder the variable scales from low to high GENERAL
+data$Buying_price<-factor(data$Buying_price, levels=c("low","med","high","vhigh"))
+data$Maintenance_price<-factor(data$Maintenance_price, levels=c("low","med","high","vhigh"))
+data$Value<-factor(data$Value, levels=c("unacc","acc","good","vgood"))
+data$Lug_boot<-factor(data$Lug_boot, levels=c("small","med","big"))
+data$Safety<-factor(data$Safety, levels=c("low","med","high"))
+
+data2 <-subset(data, (data$Doors!=4 | data$Persons!=2) & (data$Doors!="5more" | data$Persons!=2))
+
+data2$Persons2<-(data2$Persons==2)
+data2$Persons4<-(data2$Persons==4)
+data2$Personsmore<-(data2$Persons=="more")
+
+data2$Doors2<-(data2$Doors==2)
+data2$Doors3<-(data2$Doors==3)
+data2$Doors4<-(data2$Doors==4)
+data2$Doors5<-(data2$Doors=="5more")
+
+data2$Buying_price_low<-(data2$Buying_price=="low")
+data2$Buying_price_med<-(data2$Buying_price=="med")
+data2$Buying_price_high<-(data2$Buying_price=="high")
+data2$Buying_price_vhigh<-(data2$Buying_price=="vhigh")
+
+data2$Maintenance_price_low<-(data2$Maintenance_price=="low")
+data2$Maintenance_price_med<-(data2$Maintenance_price=="med")
+data2$Maintenance_price_high<-(data2$Maintenance_price=="high")
+data2$Maintenance_price_vhigh<-(data2$Maintenance_price=="vhigh")
+  
+data3<- subset(data2, data2$Buying_price!="med" & data2$Maintenance_price!="med")
+
+#attach(data2)
+#attach(data3)
+summary(data2)
+
+data3$value2<-as.numeric(data3$Value)
+data2$value2<-as.numeric(data2$Value)
+
+```
+
+```{r}
+#Reorder the variable scales from low to high EXAMPLES
+dataex$Buying_price<-factor(dataex$Buying_price, levels=c("low","med","high","vhigh"))
+dataex$Maintenance_price<-factor(dataex$Maintenance_price, levels=c("low","med","high","vhigh"))
+dataex$Value<-factor(dataex$Value, levels=c("unacc","acc","good","vgood"))
+dataex$Lug_boot<-factor(dataex$Lug_boot, levels=c("small","med","big"))
+dataex$Safety<-factor(dataex$Safety, levels=c("low","med","high"))
+
+dataex2 <-subset(dataex, (dataex$Doors!=4 | dataex$Persons!=2) & (dataex$Doors!="5more" | dataex$Persons!=2))
+
+dataex2$Persons2<-(dataex2$Persons==2)
+dataex2$Persons4<-(dataex2$Persons==4)
+dataex2$Personsmore<-(dataex2$Persons=="more")
+
+dataex2$Doors2<-(dataex2$Doors==2)
+dataex2$Doors3<-(dataex2$Doors==3)
+dataex2$Doors4<-(dataex2$Doors==4)
+dataex2$Doors5<-(dataex2$Doors=="5more")
+
+dataex2$Buying_price_low<-(dataex2$Buying_price=="low")
+dataex2$Buying_price_med<-(dataex2$Buying_price=="med")
+dataex2$Buying_price_high<-(dataex2$Buying_price=="high")
+dataex2$Buying_price_vhigh<-(dataex2$Buying_price=="vhigh")
+
+dataex2$Maintenance_price_low<-(dataex2$Maintenance_price=="low")
+dataex2$Maintenance_price_med<-(dataex2$Maintenance_price=="med")
+dataex2$Maintenance_price_high<-(dataex2$Maintenance_price=="high")
+dataex2$Maintenance_price_vhigh<-(dataex2$Maintenance_price=="vhigh")
+  
+dataex3<- subset(dataex2, dataex2$Buying_price!="med" & data2$Maintenance_price!="med")
+
+#attach(dataex2)
+#attach(dataex3)
+summary(dataex2)
+
+dataex3$value2<-as.numeric(dataex3$Value)
+dataex2$value2<-as.numeric(dataex2$Value)
+
+```
+Nb of rows in data2: 1439
+
+
+```{r}
+#Roughly explore the influence of each parameter on the Value
+graph<-ggplot(data2,aes(x=Safety,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data2,aes(x=Buying_price,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data2,aes(x=Maintenance_price,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data2,aes(x=Doors,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data2,aes(x=Persons,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data2,aes(x=Lug_boot,y=Value))+geom_point(position = "jitter")
+graph
+
+graph<-ggplot(data2,aes(x=Doors,y=Persons))+geom_point(aes(colour=Value), position = "jitter")
+graph
+```
+Temporary conclusions: 
+
+- Safety is a quite important factor: a low safety automatically results in "Unacceptable"
+- Buying price: if high or very high, results in "unacc" or "acc" at best
+- Maintenance price: if very high, results in "unacc" or "acc", but some cars with "high" maintenance price (sign of a good quality?) are "very good"
+- Number of doors: irrelevant in determining value at first glance because the proportions of unacc, acc, good and vgood seem to not depend on the number of doors
+- Max number of passengers: "2 people" means a car that is too small --> unacc. Indifferent between 4 people or more
+- Size of luggage loot: not very relevant but a small loot cannot result in "very good"
+
+
+Plot histogram because many points may be overlapped
+
+```{r}
+#To see how the data is distributed (proportions)
+naive_bayes(data2,data2$Lug_boot)
+```
+
+
+```{r}
+#Generate randomly the training data and the test data
+set.seed(3)
+size.dtrain<-floor(0.55*nrow(data2)) #we take 55% of the data as training data
+size.dtest<-nrow(data2)-size.dtrain
+index.train <- sample(1:nrow(data2),size.dtrain,replace=FALSE) 
+
+dtrain<-data2[index.train,]
+dtest<-data2[-index.train,] #the remaining 45% are test data
+
+attach(dtrain)
+```
+
+
+```{r}
+#Model that includes all the parameters in predicting the Value
+
+glmfit<-glm(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh + Doors5+ Doors4 + Lug_boot, family=binomial,data=dtrain)
+
+proba <- predict(glmfit,type="response")
+summary(proba)
+
+dataframe<-data.frame(proba)
+
+p <- ggplot(dataframe, aes(proba)) + geom_histogram(aes(y=..density..), colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666")
+p
+
+summary(glmfit)
+
+```
+Conclusions: 
+Number of doors totally irrelevant (p-value is too large)
+It appears that safety is irrelevant (p-value too large). Why??
+
+
+```{r}
+#See the correlation matrix
+dtrain.mat<-data.frame(dtrain$Buying_price_high,dtrain$Buying_price_vhigh,dtrain$Maintenance_price_high,dtrain$Maintenance_price_vhigh,dtrain$Doors5,dtrain$Doors4,dtrain$Lug_boot,dtrain$value2)
+
+dtrain.mat$Buying_price_high2<-as.numeric(dtrain.mat$dtrain.Buying_price_high)
+dtrain.mat$Buying_price_vhigh2<-as.numeric(dtrain.mat$dtrain.Buying_price_vhigh)
+dtrain.mat$Maintenance_price_high2<-as.numeric(dtrain.mat$dtrain.Maintenance_price_high)
+dtrain.mat$Maintenance_price_vhigh2<-as.numeric(dtrain.mat$dtrain.Maintenance_price_vhigh)
+dtrain.mat$Doors5.2<-as.numeric(dtrain.mat$dtrain.Doors5)
+dtrain.mat$Doors4.2<-as.numeric(dtrain.mat$dtrain.Doors4)
+dtrain.mat$Lug_boot2<-as.numeric(dtrain.mat$dtrain.Lug_boot)
+
+dtrain.mat.numeric<-data.frame(dtrain.mat$Buying_price_high2,dtrain.mat$Buying_price_vhigh2,dtrain.mat$Maintenance_price_high2,dtrain.mat$Maintenance_price_vhigh2,dtrain.mat$Doors5.2,dtrain.mat$Doors4.2,dtrain.mat$Lug_boot2,dtrain.mat$dtrain.value2)
+
+cormat.test<-round(cor(dtrain.mat.numeric),2)
+head(cormat.test)
+
+melted_cormat.test <- melt(cormat.test)
+head(melted_cormat.test)
+
+ggplot(data = melted_cormat.test, aes(x=X1, y=X2, fill=value)) + 
+  geom_tile()
+
+```
+
+```{r}
+
+#Function that returns the vector with associates to each car its predicted Value, depending on the chosen thresholds for the probabilities
+result.table<-function(p1,p2,p3,data){
+  glm.probs=predict(glmfit,type="response",data)
+  glm.pred = rep(1,nrow(data))# creates a vector of 1 elements 
+  glm.pred[glm.probs>=p1]=4 #transforms to 1 all of the elements for which th e predicted
+  glm.pred[(glm.probs>=p2) & (glm.probs<p1)]=3
+  glm.pred[glm.probs>=p3 & glm.probs<p2]=2
+  
+  return(glm.pred)
+}
+
+
+optim<-function(p1,p2,p3,interval,data){
+  results<-list()
+  p1bis=p1
+  while(p1bis<1){
+    p2bis=p2
+    while (p2bis<p1bis){
+      p3bis=p3
+      while (p3bis<p2bis) {
+        confusion.matrix=table(result.table(p1bis,p2bis,p3bis,data),data$value2)
+        precision=sum(diag(confusion.matrix))/nrow(data)
+        results=c(results,list(c(p1bis,p2bis,p3bis,precision)))
+        p3bis=p3bis+interval
+      }
+      p2bis=p2bis+interval
+    }
+    p1bis=p1bis+interval
+  }
+  
+  d<-as.data.frame(results)
+  return(d)
+}
+
+q<-optim(0.5,0.4,0.3,0.05,dtrain)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("p1","p2","p3","Precision")
+rownames(q)<-c()
+
+#Extracting the maximum precision and its associated threshold probability
+qbis<-subset(q, (q$Precision==max(q$Precision)))
+qbis
+
+#Proportion of unacc cars in the training set
+nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
+```
+
+```{r}
+p <- plot_ly(dtrain, x = ~q$p1, y = ~q$p2, z = ~q$Precision,
+        marker = list(color = ~q$p3, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE))
+         
+p
+
+```
+The red color scale applies to the values of threshold p3.
+
+A maximum precision of 66.75% can be obtained on the training data set, which is better than the naive guess "all cars are unacceptable" (giving a precision of 63.97%).
+
+The confusion matrix associated with the chosen thresholds is:
+```{r}
+confusion.matrix<-table(result.table(0.8,0.75,0.45,dtrain),dtrain$value2)
+confusion.matrix
+
+precision=sum(diag(confusion.matrix))/nrow(dtrain)
+precision
+
+```
+
+```{r}
+#test examples
+
+confusion.matrix.test<-table(result.table(0.8,0.75,0.45,dataex2),dataex2$value2)
+confusion.matrix.test
+
+precision.test=sum(diag(confusion.matrix.test))/nrow(dataex)
+precision.test
+
+```
+
+```{r}
+#test data
+
+confusion.matrix.test<-table(result.table(0.8,0.75,0.45,dtest),dtest$value2)
+confusion.matrix.test
+
+precision.test=sum(diag(confusion.matrix.test))/nrow(dtest)
+precision.test
+
+# Proportion of unacc cars in test set
+nrow(subset(dtest,Value=="unacc"))/nrow(dtest)
+```
+
+The model gives a precision of 59.41% on the test set.
+
+
+```{r}
+summary(data)
+nrow(data)
+
+summary(data2)
+nrow(data2)
+
+summary(data3)
+nrow(data3)
+```
+
+```{r}
+# quadratic discriminant Analysis (QDA)
+
+qda.model<-qda(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh + Doors5+ Doors4 + Lug_boot,data=dtrain)
+
+```
+
+```{r}
+# Linear discriminant Analysis (LDA)
+
+lda.model<-lda(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh + Doors5+ Doors4 + Lug_boot,data=dtrain)
+lda.model
+predmodel.train.lda<-predict(lda.model, type="response")
+summary(predmodel.train.lda)
+
+```
+
+```{r}
+# Linear discriminant Analysis (LDA) by Alex
+
+lda.model<-lda(value2~ Buying_price + Maintenance_price + Safety + Doors + Persons + Lug_boot,data=data2)
+lda.model
+plot(lda.model, pch = 20, col = as.integer(data2$value2))
+lda.pred = predict (lda.model,data2)
+confusion_matrix_lda<-table(lda.pred$class,data2$Value)
+confusion_matrix_lda
+sum(diag(confusion_matrix_lda))/nrow(data2) #precision
+```
+For LDA: Precision if all variables: 0.878
+Without Safety:0.65
+Without safety and persons: 0.64
+without persons: 0.805
+same variables as glm: 0.648
