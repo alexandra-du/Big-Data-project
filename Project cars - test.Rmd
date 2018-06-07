@@ -20,7 +20,10 @@ library(shiny)
 library(reshape)
 library(lda)
 library(MASS)
+library(class)
+library(gplots)
 ```
+
 
 #2) Car evaluation data set
 
@@ -378,3 +381,117 @@ Without Safety:0.65
 Without safety and persons: 0.64
 without persons: 0.805
 same variables as glm: 0.648
+
+
+```{r}
+
+Safety.knn=factor(data2$Safety, levels=c("low","med","high"),labels=c("0","1","2"))
+Buying_price.knn=factor(data2$Buying_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Maintenance_price.knn=factor(data2$Maintenance_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Doors.knn=factor(data2$Doors, levels=c("2","3","4","5more"),labels=c("0","1","2","3"))
+Persons.knn=factor(data2$Persons, levels=c("2","4","more"),labels=c("0","1","2"))
+Lug_boot.knn=factor(data2$Lug_boot, levels=c("small","med","big"),labels=c("0","1","2"))
+Value.knn=factor(data2$Value, levels=c("unacc","acc","good","vgood"),labels=c("1","2","3","4"))
+data.knn=data.frame(Safety.knn,Buying_price.knn,Maintenance_price.knn,Doors.knn,Persons.knn,Lug_boot.knn,Value.knn)
+```
+
+```{r}
+# GET NUMERIC FOR DATAEX
+Safety.knn.ex=factor(dataex2$Safety, levels=c("low","med","high"),labels=c("0","1","2"))
+Buying_price.knn.ex=factor(dataex2$Buying_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Maintenance_price.knn.ex=factor(dataex2$Maintenance_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Doors.knn.ex=factor(dataex2$Doors, levels=c("2","3","4","5more"),labels=c("0","1","2","3"))
+Persons.knn.ex=factor(dataex2$Persons, levels=c("2","4","more"),labels=c("0","1","2"))
+Lug_boot.knn.ex=factor(dataex2$Lug_boot, levels=c("small","med","big"),labels=c("0","1","2"))
+Value.knn.ex=factor(dataex2$Value, levels=c("unacc","acc","good","vgood"),labels=c("1","2","3","4"))
+data.knn.ex=data.frame(Safety.knn.ex,Buying_price.knn.ex,Maintenance_price.knn.ex,Doors.knn.ex,Persons.knn.ex,Lug_boot.knn.ex,Value.knn.ex)
+```
+
+```{r}
+dtrain.knn<-data.knn[index.train,]
+dtest.knn<-data.knn[-index.train,]
+nrow(dtrain.knn)
+nrow(dtest.knn)
+
+dtrValue=dtrain.knn[,7]
+dteValue=dtest.knn[,7]
+```
+
+```{r}
+summary(data.knn)
+names(data.knn)
+str(dtrain.knn)
+```
+
+```{r}
+# 6 attributes
+
+dtrain.knn0=data.frame(dtrain.knn$Buying_price,dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Lug_boot.knn,dtrain.knn$Persons.knn,dtrain.knn$Safety.knn)
+dtest.knn0=data.frame(dtest.knn$Buying_price,dtest.knn$Maintenance_price.knn,dtest.knn$Doors.knn,dtest.knn$Lug_boot.knn,dtest.knn$Persons.knn,dtest.knn$Safety.knn)
+data.knn.ex0=data.frame(data.knn.ex$Buying_price,data.knn.ex$Maintenance_price.knn,data.knn.ex$Doors.knn,data.knn.ex$Lug_boot.knn,data.knn.ex$Persons.knn,data.knn.ex$Safety.knn)
+
+
+dtrValue=dtrain.knn[,7]
+dteValue=dtest.knn[,7]
+dataexValue=data.knn.ex[,7]
+```
+
+```{r}
+
+results<-list()
+for (k in 1:20) {
+  set.seed(1)
+  knn.pred0=knn(dtrain.knn0,dtest.knn0,dtrValue,k)
+  table.test.knn0=table(knn.pred0,dteValue)
+  p=sum(diag(table.test.knn0))/sum(table.test.knn0)
+  results=c(results,list(c(k,p)))
+  
+}
+q<-as.data.frame(results)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("k","Precision")
+rownames(q)<-c()
+
+#Extracting the maximum precision and its associated K
+qmax<-subset(q, (q$Precision==max(q$Precision)))
+qmax
+```
+```{r}
+# for the example 
+results<-list()
+for (k in 1:20) {
+  set.seed(1)
+  knn.pred1=knn(dtrain.knn0,data.knn.ex0,dataexValue,k)
+  table.example.knn0=table(knn.pred1,dataexValue)
+  p=sum(diag(table.example.knn0))/sum(table.example.knn0)
+  results=c(results,list(c(k,p)))
+  
+}
+qexample<-as.data.frame(results)
+qexample<-t(qexample) #transpose q
+qexample<-as.data.frame(qexample) #converts to data frame
+
+#Renaming rows and columns
+colnames(qexample)<-c("k","Precision")
+rownames(qexample)<-c()
+
+#Extracting the maximum precision and its associated K
+qmaxex<-subset(q, (q$Precision==max(qexample$Precision)))
+qmaxex
+```
+
+```{r}
+set.seed(1)
+knn.pred0=knn(dtrain.knn0,dtest.knn0,dtrValue,k=3)
+table.test.knn0=table (knn.pred0,dteValue)
+table.test.knn0
+p0=sum(diag(table.test.knn0))/sum(table.test.knn0)
+p0
+
+heatmap=heatmap.2(table.test.knn0,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn0,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn0),colnames(table.test.knn0))
+CrossTable(dteValue,knn.pred0,prop.chisq = FALSE)
+```
+
