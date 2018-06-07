@@ -28,7 +28,7 @@ http://archive.ics.uci.edu/ml/datasets/Car+Evaluation
 
 
 ```{r}
-data<- read.csv(file.choose(), sep="," , header=T)
+data<- read.csv(file.choose(), sep=",")
 colnames(data) <- c("Buying_price", "Maintenance_price", "Doors", "Persons", "Lug_boot", "Safety","Value")
 levels(data$Doors)
 
@@ -123,7 +123,7 @@ ggplot(data = melted_cormat.test, aes(x=X1, y=X2, fill=value)) +
   geom_tile()
 
 ```
-Nb of rows in data2: 1439
+Nb of rows in data2: 1440
 
 
 ```{r}
@@ -199,7 +199,7 @@ summary(glmfit)
 ```
 Conclusions: 
 Number of doors totally irrelevant (p-value is too large)
-It appears that safety is irrelevant (p-value too large). Why??
+It appears that safety is irrelevant (p-value too large)
 
 
 
@@ -269,7 +269,7 @@ A maximum precision of 66.75% can be obtained on the training data set, which is
 
 The confusion matrix associated with the chosen thresholds is:
 ```{r}
-confusion.matrix<-table(result.table(0.8,0.75,0.45,dtrain),dtrain$value2)
+confusion.matrix<-table(result.table(0.8,0.75,0.4,dtrain),dtrain$value2)
 confusion.matrix
 
 precision=sum(diag(confusion.matrix))/nrow(dtrain)
@@ -281,7 +281,7 @@ precision
 ```{r}
 #test data
 
-confusion.matrix.test<-table(result.table(0.8,0.75,0.45,dtest),dtest$value2)
+confusion.matrix.test<-table(result.table(0.8,0.75,0.4,dtest),dtest$value2)
 confusion.matrix.test
 
 precision.test=sum(diag(confusion.matrix.test))/nrow(dtest)
@@ -291,7 +291,7 @@ precision.test
 nrow(subset(dtest,Value=="unacc"))/nrow(dtest)
 ```
 
-The model gives a precision of 59.41% on the test set.
+The model gives a precision of 60.34% on the test set.
 
 
 ```{r}
@@ -338,3 +338,80 @@ Without Safety:0.65
 Without safety and persons: 0.64
 without persons: 0.805
 same variables as glm: 0.648
+
+
+
+#<font color="blue">5) Method 3: K-nearest neighbors</font>
+
+<h2><font color="teal">5.1) Convert data frame into matrix</font></h2>
+```{r}
+
+Safety.knn=factor(data2$Safety, levels=c("low","med","high"),labels=c("0","1","2"))
+Buying_price.knn=factor(data2$Buying_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Maintenance_price.knn=factor(data2$Maintenance_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Doors.knn=factor(data2$Doors, levels=c("2","3","4","5more"),labels=c("0","1","2","3"))
+Persons.knn=factor(data2$Persons, levels=c("2","4","more"),labels=c("0","1","2"))
+Lug_boot.knn=factor(data2$Lug_boot, levels=c("small","med","big"),labels=c("0","1","2"))
+Value.knn=factor(data2$Value, levels=c("unacc","acc","good","vgood"),labels=c("1","2","3","4"))
+data.knn=data.frame(Safety.knn,Buying_price.knn,Maintenance_price.knn,Doors.knn,Persons.knn,Lug_boot.knn,Value.knn)
+```
+
+```{r}
+dtrain.knn<-data.knn[index.train,]
+dtest.knn<-data.knn[-index.train,]
+nrow(dtrain.knn)
+nrow(dtest.knn)
+
+dtrValue=dtrain.knn[,7]
+dteValue=dtest.knn[,7]
+```
+
+```{r}
+summary(data.knn)
+names(data.knn)
+str(dtrain.knn)
+```
+
+```{r}
+# 6 attributes
+
+dtrain.knn0=data.frame(dtrain.knn$Buying_price,dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Lug_boot.knn,dtrain.knn$Persons.knn,dtrain.knn$Safety.knn)
+dtest.knn0=data.frame(dtest.knn$Buying_price,dtest.knn$Maintenance_price.knn,dtest.knn$Doors.knn,dtest.knn$Lug_boot.knn,dtest.knn$Persons.knn,dtest.knn$Safety.knn)
+
+
+dtrValue=dtrain.knn[,7]
+dteValue=dtest.knn[,7]
+
+results<-list()
+for (k in 1:20) {
+  set.seed(1)
+  knn.pred0=knn(dtrain.knn0,dtest.knn0,dtrValue,k)
+  table.test.knn0=table (knn.pred0,dteValue)
+  p=sum(diag(table.test.knn0))/sum(table.test.knn0)
+  results=c(results,list(c(k,p)))
+  
+}
+q<-as.data.frame(results)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("k","Precision")
+rownames(q)<-c()
+
+#Extracting the maximum precision and its associated K
+qmax<-subset(q, (q$Precision==max(q$Precision)))
+qmax
+```
+
+```{r}
+set.seed(1)
+knn.pred0=knn(dtrain.knn0,dtest.knn0,dtrValue,k=3)
+table.test.knn0=table (knn.pred0,dteValue)
+table.test.knn0
+p0=sum(diag(table.test.knn0))/sum(table.test.knn0)
+p0
+
+heatmap=heatmap.2(table.test.knn0,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn0,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn0),colnames(table.test.knn0))
+CrossTable(dteValue,knn.pred0,prop.chisq = FALSE)
+```
