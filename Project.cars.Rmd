@@ -1,0 +1,506 @@
+---
+title: "Big Data project: Car evaluation"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+
+```{r}
+setwd("/Users/dua/Documents/Big Data Analytics/Project")
+library("ggplot2")
+library(readxl)
+library(naivebayes)
+library(plotly)
+library(shiny)
+library(reshape)
+library(lda)
+library(MASS)
+library(class)
+library(gplots)
+library(gmodels)
+ggplot<-ggplot2::ggplot
+```
+
+Source:
+
+http://archive.ics.uci.edu/ml/datasets/Car+Evaluation
+
+
+#<font color="blue">1) Data preparation</font>
+
+<h2><font color="teal">1.1) Data importation and preliminary visualization</font></h2>
+
+```{r}
+data<- read.table("car.data", sep=",")
+colnames(data) <- c("Buying_price", "Maintenance_price", "Doors", "Persons", "Lug_boot", "Safety","Value")
+
+#Reorder the variable scales from low to high
+data$Buying_price<-factor(data$Buying_price, levels=c("low","med","high","vhigh"))
+data$Maintenance_price<-factor(data$Maintenance_price, levels=c("low","med","high","vhigh"))
+data$Value<-factor(data$Value, levels=c("unacc","acc","good","vgood"))
+data$Lug_boot<-factor(data$Lug_boot, levels=c("small","med","big"))
+data$Safety<-factor(data$Safety, levels=c("low","med","high"))
+```
+
+Description des variables: 
+- Buying price and maintenance price: low, med, high, very high
+- Number of doors: 2, 3, 4, 5 or more
+- Max number of people: 2, 4, or more
+- Size of luggage boot: small, medium, big
+- Safety index: low, medium, high
+
+- Value of car: what we are trying to predict. Unacceptable, acceptable, good, very good
+
+```{r}
+#Roughly explore the influence of each parameter on the Value
+graph_safety=ggplot(data,aes(x=Safety,y=Value))+geom_point(position = "jitter",aes(color=Value))
+graph_safety
+
+graph_buying=ggplot(data,aes(x=Buying_price,y=Value))+geom_point(position = "jitter",aes(color=Value))
+graph_buying
+
+graph_maint=ggplot(data,aes(x=Maintenance_price,y=Value))+geom_point(position = "jitter",aes(color=Value))
+graph_maint
+
+graph_lug=ggplot(data,aes(x=Lug_boot,y=Value))+geom_point(position = "jitter",aes(color=Value))
+graph_lug
+
+graph_persons=ggplot(data,aes(x=Persons,y=Value))+geom_point(position = "jitter",aes(color=Value))
+graph_persons
+
+graph_doors=ggplot(data,aes(x=Doors,y=Value))+geom_point(position = "jitter",aes(color=Value))
+graph_doors
+```
+Temporary conclusions: 
+
+- Safety is a quite important factor: a low safety automatically results in "Unacceptable"
+- Buying price: if high or very high, results in "unacc" or "acc" at best
+- Maintenance price: if very high, results in "unacc" or "acc", but some cars with "high" maintenance price (sign of a good quality?) are "very good"
+- Number of doors: irrelevant in determining value at first glance because the proportions of unacc, acc, good and vgood seem to not depend on the number of doors
+- Max number of passengers: "2 people" means a car that is too small --> unacc. Indifferent between 4 people or more
+- Size of luggage loot: not very relevant but a small loot cannot result in "very good"
+
+
+<h2><font color="teal">1.2) Data cleaning</font></h2>
+
+```{r}
+data2 <-subset(data, (data$Doors!=4 | data$Persons!=2) & (data$Doors!="5more" | data$Persons!=2))
+
+data2$Doors2<-(data2$Doors==2)
+data2$Doors3<-(data2$Doors==3)
+data2$Doors4<-(data2$Doors==4)
+data2$Doors5<-(data2$Doors=="5more")
+
+data2$Buying_price_low<-(data2$Buying_price=="low")
+data2$Buying_price_med<-(data2$Buying_price=="med")
+data2$Buying_price_high<-(data2$Buying_price=="high")
+data2$Buying_price_vhigh<-(data2$Buying_price=="vhigh")
+
+data2$Maintenance_price_low<-(data2$Maintenance_price=="low")
+data2$Maintenance_price_med<-(data2$Maintenance_price=="med")
+data2$Maintenance_price_high<-(data2$Maintenance_price=="high")
+data2$Maintenance_price_vhigh<-(data2$Maintenance_price=="vhigh")
+
+data2$value2<-as.numeric(data2$Value)
+```
+
+<h2><font color="teal">1.3) Visualization of relations between attributes</font></h2>
+
+```{r}
+#Correlation matrix with the initial categories
+data3 <-subset(data, (data$Doors!=4 | data$Persons!=2) & (data$Doors!="5more" | data$Persons!=2))
+
+numerica<-data.frame(as.numeric(data3$Buying_price),as.numeric(data3$Maintenance_price),as.numeric(data3$Doors),as.numeric(data3$Persons),as.numeric(data3$Safety),as.numeric(data3$Lug_boot))
+cormat.test<-round(cor(numerica),2)
+head(cormat.test)
+
+melted_cormat.test <- melt(cormat.test)
+head(melted_cormat.test)
+
+ggplot(data = melted_cormat.test, aes(x=X1, y=X2, fill=value)) + 
+  geom_tile()
+```
+
+
+#<font color="blue">3) Method 1: Logistic regression</font>
+
+```{r}
+#To see how the data is distributed (proportions)
+naive_bayes(data2,data2$Lug_boot)
+```
+
+<h2><font color="teal">3.1) Generate randomly the training data and the test data</font></h2>
+```{r}
+set.seed(3)
+size.dtrain<-floor(0.55*nrow(data2)) #we take 55% of the data as training data
+size.dtest<-nrow(data2)-size.dtrain
+index.train <- sample(1:nrow(data2),size.dtrain,replace=FALSE) 
+
+dtrain<-data2[index.train,]
+dtest<-data2[-index.train,] #the remaining 45% are test data
+
+attach(dtrain)
+```
+
+<h2><font color="teal">3.2) Model that includes the relevant parameters in predicting the value</font></h2>
+```{r}
+glmfit<-glm(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh +Doors5+ Doors4 + Lug_boot, family=binomial,data=dtrain)
+
+              
+proba <- predict(glmfit,type="response",data=dtrain)
+summary(proba)
+
+dataframe<-data.frame(proba)
+
+p <- ggplot(dataframe, aes(proba)) + geom_histogram(aes(y=..density..), colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666")
+p
+
+summary(glmfit)
+
+```
+<h3>Conclusions:</h3> 
+Number of people totally irrelevant (p-value is too large)
+It appears that safety is irrelevant (p-value too large)
+
+```{r}
+#Function that returns the vector with associates to each car its predicted Value, depending on the chosen thresholds for the probabilities
+result.table<-function(p1,p2,p3,dframe){
+  glm.probs=predict(glmfit,type="response",dframe)
+  glm.pred = rep(1,nrow(dframe))# creates a vector of 1 elements 
+  glm.pred[glm.probs>=p1]=4 #transforms to 1 all of the elements for which th e predicted
+  glm.pred[(glm.probs>=p2) & (glm.probs<p1)]=3
+  glm.pred[glm.probs>=p3 & glm.probs<p2]=2
+  
+  return(glm.pred)
+}
+
+
+optimize<-function(p1,p2,p3,interval,dframe){
+  results<-list()
+  p1bis=p1
+  while(p1bis<1){
+    p2bis=p2
+    while (p2bis<p1bis){
+      p3bis=p3
+      while (p3bis<p2bis) {
+        confusion.matrix=table(result.table(p1bis,p2bis,p3bis,dframe),dframe$value2)
+        precision=sum(diag(confusion.matrix))/nrow(dframe)
+        results=c(results,list(c(p1bis,p2bis,p3bis,precision)))
+        p3bis=p3bis+interval
+      }
+      p2bis=p2bis+interval
+    }
+    p1bis=p1bis+interval
+  }
+  
+  d<-as.data.frame(results)
+  return(d)
+}
+
+q<-optimize(0.3,0.2,0.1,0.05,dtrain)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("p1","p2","p3","Precision")
+rownames(q)<-c()
+
+#Extracting the maximum precision and its associated threshold probability
+qmax<-subset(q, (q$Precision==max(q$Precision)))
+qmax
+
+#Proportion of unacc cars in the training set
+nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
+```
+
+```{r}
+p <- plot_ly(dtrain, x = ~q$p1, y = ~q$p2, z = ~q$Precision,
+        marker = list(color = ~q$p3, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE))
+layout(p,title = 'Logistic regression precision as a function of the probability thresholds',
+        scene = list(xaxis = list(title = 'p1'),
+                     yaxis = list(title = 'p2'),
+                     zaxis = list(title = "Model precision")),
+       annotations = list(
+           x = 1.13,
+           y = 1.03,
+           text = 'Value of p3',
+           xref = 'paper',
+           yref = 'paper',
+           showarrow = FALSE
+         ))
+         
+
+```
+The red color scale applies to the values of threshold p3.
+
+A maximum precision of 66.75% can be obtained on the training data set, which is better than the naive guess "all cars are unacceptable" (giving a precision of 63.97%).
+
+The confusion matrix associated with the chosen thresholds is:
+```{r}
+confusion.matrix<-table(result.table(0.8,0.75,0.4,dtrain),dtrain$value2)
+confusion.matrix
+
+precision=sum(diag(confusion.matrix))/nrow(dtrain)
+precision
+
+heatmap.train=heatmap.2(confusion.matrix,col=rev(heat.colors(100)),xlab="Training_set",ylab="Prediction",cellnote=confusion.matrix,notecol="black",trace="none",dendrogram="none",rownames(confusion.matrix),colnames(confusion.matrix))
+
+nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
+```
+
+<h2><font color="teal">3.3) Performance of the model on the test data set</font></h2>
+```{r}
+#test data
+
+confusion.matrix.test<-table(result.table(0.8,0.75,0.4,dtest),dtest$value2)
+confusion.matrix.test
+
+precision.test=sum(diag(confusion.matrix.test))/nrow(dtest)
+precision.test
+
+heatmap.test=heatmap.2(confusion.matrix.test,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=confusion.matrix.test,notecol="black",trace="none",dendrogram="none",rownames(confusion.matrix.test),colnames(confusion.matrix.test))
+
+# Compare with the naive guess ie Proportion of unacc cars in test set
+nrow(subset(dtest,Value=="unacc"))/nrow(dtest)
+```
+
+The model gives a precision of 60.34% on the test set.
+
+#<font color="blue">4) Method 2: Discriminant analysis</font>
+
+```{r}
+# LDA on training/test set
+lda.model1=lda(value2~ Buying_price + Maintenance_price + Safety + Doors + Persons + Lug_boot,data=dtrain)
+lda.model1
+plot(lda.model1, pch = 20, col=as.integer(dtrain$value))
+
+#Precision on training set
+lda.pred0=predict (lda.model1,dtrain)
+confusion_matrix_lda_training=table(lda.pred0$class,dtrain$value)
+sum(diag(confusion_matrix_lda_training))/nrow(dtrain)
+
+#On test set
+lda.pred1=predict (lda.model1,dtest)
+confusion_matrix_lda_test=table(lda.pred1$class,dtest$value)
+confusion_matrix_lda_test
+heatmap.lda.test=heatmap.2(confusion_matrix_lda_test,col=rev(heat.colors(100)),xlab="Test set",ylab="Prediction",cellnote=confusion_matrix_lda_test,notecol="black",trace="none",dendrogram="none", rownames(confusion_matrix_lda_test),colnames(confusion_matrix_lda_test))
+
+#Precision on test set
+sum(diag(confusion_matrix_lda_test))/nrow(dtest)
+
+```
+
+
+```{r}
+#QDA
+
+qda.fit <- qda(Value~ Doors, data = data3)
+qda.fit
+qda.class = predict (qda.fit,dtest)$class
+m<-table (qda.class, dtest$Value)
+m
+sum(diag(m))/nrow(dtest)
+```
+
+
+#<font color="blue">5) Method 3: K-nearest neighbors</font>
+
+<h2><font color="teal">5.1) Convert data frame into matrix</font></h2>
+```{r}
+#Conversion of data frames into matrices
+
+Safety.knn=factor(data2$Safety, levels=c("low","med","high"),labels=c("0","1","2"))
+Buying_price.knn=factor(data2$Buying_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Maintenance_price.knn=factor(data2$Maintenance_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Doors.knn=factor(data2$Doors, levels=c("2","3","4","5more"),labels=c("0","1","2","3"))
+Persons.knn=factor(data2$Persons, levels=c("2","4","more"),labels=c("0","1","2"))
+Lug_boot.knn=factor(data2$Lug_boot, levels=c("small","med","big"),labels=c("0","1","2"))
+Value.knn=factor(data2$Value, levels=c("unacc","acc","good","vgood"),labels=c("1","2","3","4"))
+data.knn=data.frame(Safety.knn,Buying_price.knn,Maintenance_price.knn,Doors.knn,Persons.knn,Lug_boot.knn,Value.knn)
+```
+
+```{r}
+#Constitute training/test set from the previous matrices
+
+dtrain.knn<-data.knn[index.train,]
+dtest.knn<-data.knn[-index.train,]
+
+dtrValue=dtrain.knn[,7]
+dteValue=dtest.knn[,7]
+```
+
+
+```{r}
+# 6 attributes
+
+dtrain.knn0=data.frame(dtrain.knn$Buying_price,dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Lug_boot.knn,dtrain.knn$Persons.knn,dtrain.knn$Safety.knn)
+dtest.knn0=data.frame(dtest.knn$Buying_price,dtest.knn$Maintenance_price.knn,dtest.knn$Doors.knn,dtest.knn$Lug_boot.knn,dtest.knn$Persons.knn,dtest.knn$Safety.knn)
+
+
+dtrValue=dtrain.knn[,7]
+dteValue=dtest.knn[,7]
+
+results<-list()
+for (k in 1:20) {
+  set.seed(1)
+  knn.pred0=knn(dtrain.knn0,dtest.knn0,dtrValue,k)
+  table.test.knn0=table (knn.pred0,dteValue)
+  p=sum(diag(table.test.knn0))/sum(table.test.knn0)
+  results=c(results,list(c(k,p)))
+  
+}
+q<-as.data.frame(results)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("k","Precision")
+rownames(q)<-c()
+
+#Extracting the maximum precision and its associated K
+qmax<-subset(q, (q$Precision==max(q$Precision)))
+qmax
+```
+Opimization function gives optimal k=3. We will use this value from now on.
+
+```{r}
+set.seed(1)
+knn.pred0=knn(dtrain.knn0,dtest.knn0,dtrValue,k=3)
+table.test.knn0=table (knn.pred0,dteValue)
+table.test.knn0
+p0=sum(diag(table.test.knn0))/sum(table.test.knn0)
+p0
+
+heatmap=heatmap.2(table.test.knn0,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn0,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn0),colnames(table.test.knn0))
+CrossTable(dteValue,knn.pred0,prop.chisq = FALSE)
+```
+
+We tried some other combinations and other numbers of predictors, but they give less good precisions:
+```{r}
+# 5 attributes (buying price, maintenance price, doors, luggage boot, safety)
+dtrain.knn1=data.frame(dtrain.knn$Buying_price,dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Lug_boot.knn,dtrain.knn$Safety.knn,dtrain.knn$Value.knn)
+dtest.knn1=data.frame(dtest.knn$Buying_price,dtest.knn$Maintenance_price.knn,dtest.knn$Doors.knn,dtest.knn$Lug_boot.knn,dtest.knn$Safety.knn, dtest.knn$Value.knn)
+dtrValue1=dtrain.knn1[,6]
+dteValue1=dtest.knn1[,6]
+
+results<-list()
+for (k in 1:20) {
+  set.seed(1)
+knn.pred1=knn(dtrain.knn1[,1:5],dtest.knn1[,1:5],dtrValue1,k)
+table.test.knn1=table (knn.pred1,dteValue1)
+p1=sum(diag(table.test.knn1))/sum(table.test.knn1)
+results=c(results,list(c(k,p1)))
+  
+}
+q<-as.data.frame(results)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("k","Precision")
+rownames(q)<-c()
+
+#Extracting the maximum precision and its associated K
+qmax<-subset(q, (q$Precision==max(q$Precision)))
+qmax
+```
+
+```{r}
+# 4 attributes (buying price, Doors, luggage boot,Safety)
+dtrain.knn2=data.frame(dtrain.knn$Buying_price,dtrain.knn$Doors.knn,dtrain.knn$Lug_boot.knn,dtrain.knn$Safety.knn ,dtrain.knn$Value.knn)
+dtest.knn2=data.frame(dtest.knn$Buying_price,dtest.knn$Maintenance_price.knn,dtest.knn$Lug_boot.knn,dtest.knn$Safety.knn ,dtest.knn$Value.knn)
+dtrValue2=dtrain.knn2[,5]
+dteValue2=dtest.knn2[,5]
+
+results<-list()
+
+for (k in 1:20) {
+  set.seed(1)
+knn.pred2=knn(dtrain.knn2[,1:4],dtest.knn2[,1:4],dtrValue2,k)
+table.test.knn2=table (knn.pred2,dteValue2)
+p2=sum(diag(table.test.knn2))/sum(table.test.knn2)
+print(p2)
+results=c(results,list(c(k,p2)))
+  
+}
+q<-as.data.frame(results)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("k","Precision")
+rownames(q)<-c()
+
+#Extracting the maximum precision and its associated K
+qmax<-subset(q, (q$Precision==max(q$Precision)))
+qmax
+
+knn.pred2=knn(dtrain.knn2[,1:4],dtest.knn2[,1:4],dtrValue2,3)
+table.test.knn2=table (knn.pred2,dteValue2)
+table.test.knn2
+p2=sum(diag(table.test.knn2))/sum(table.test.knn2)
+p2
+
+heatmap2=heatmap.2(table.test.knn2,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn2,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn2),colnames(table.test.knn2))
+
+```
+
+```{r}
+# 3 attributes (buying price, maintenance price, doors)
+dtrain.knn3=data.frame(dtrain.knn$Buying_price,dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Value.knn)
+dtest.knn3=data.frame(dtest.knn$Buying_price,dtest.knn$Maintenance_price.knn,dtest.knn$Doors.knn,dtest.knn$Value.knn)
+dtrValue3=dtrain.knn3[,4]
+dteValue3=dtest.knn3[,4]
+results<-list()
+
+for (k in 1:20) {
+knn.pred3=knn(dtrain.knn3[,1:3],dtest.knn3[,1:3],dtrValue3,k)
+table.test.knn3=table (knn.pred3,dteValue3)
+p3=sum(diag(table.test.knn3))/sum(table.test.knn3)
+print(p3)
+results=c(results,list(c(k,p3)))
+  
+}
+q<-as.data.frame(results)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("k","Precision")
+rownames(q)<-c()
+
+#Extracting the maximum precision and its associated K
+qmax<-subset(q, (q$Precision==max(q$Precision)))
+qmax
+```
+
+```{r}
+# 3 attributes (maintenance price, doors, luggage boot)
+dtrain.knn4=data.frame(dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Lug_boot.knn,dtrain.knn$Value.knn)
+dtest.knn4=data.frame(dtest.knn$Maintenance_price.knn,dtest.knn$Doors.knn,dtest.knn$Lug_boot.knn,dtest.knn$Value.knn)
+dtrValue4=dtrain.knn4[,4]
+dteValue4=dtest.knn4[,4]
+results<-list()
+
+for (k in 1:20) {
+knn.pred4=knn(dtrain.knn4[,1:3],dtest.knn4[,1:3],dtrValue4,k)
+table.test.knn4=table (knn.pred4,dteValue4)
+p4=sum(diag(table.test.knn4))/sum(table.test.knn4)
+results=c(results,list(c(k,p4)))
+  
+}
+q<-as.data.frame(results)
+q<-t(q) #transpose q
+q<-as.data.frame(q) #converts to data frame
+
+#Renaming rows and columns
+colnames(q)<-c("k","Precision")
+rownames(q)<-c()
+
+#Extracting the maximum precision and its associated K
+qmax<-subset(q, (q$Precision==max(q$Precision)))
+qmax
+
+```
