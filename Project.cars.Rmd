@@ -43,7 +43,7 @@ data$Lug_boot<-factor(data$Lug_boot, levels=c("small","med","big"))
 data$Safety<-factor(data$Safety, levels=c("low","med","high"))
 ```
 
-Description des variables: 
+Description of the variables: 
 - Buying price and maintenance price: low, med, high, very high
 - Number of doors: 2, 3, 4, 5 or more
 - Max number of people: 2, 4, or more
@@ -85,8 +85,11 @@ Temporary conclusions:
 <h2><font color="teal">1.2) Data cleaning</font></h2>
 
 ```{r}
-data2 <-subset(data, (data$Doors!=4 | data$Persons!=2) & (data$Doors!="5more" | data$Persons!=2))
+#data preparation
 
+data2 <-subset(data, (data$Doors!=4 | data$Persons!=2) & (data$Doors!="5more" | data$Persons!=2)) #data cleaning for inconsistent results
+
+#reorganization of data
 data2$Doors2<-(data2$Doors==2)
 data2$Doors3<-(data2$Doors==3)
 data2$Doors4<-(data2$Doors==4)
@@ -122,6 +125,7 @@ ggplot(data = melted_cormat.test, aes(x=X1, y=X2, fill=value)) +
   geom_tile()
 ```
 
+We see that - as we could expect - there is a correlation between the number of doors and the number of persons that can fit in
 
 #<font color="blue">3) Method 1: Logistic regression</font>
 
