@@ -8,7 +8,6 @@ output:
 
 
 ```{r}
-setwd("/Users/dua/Documents/Big Data Analytics/Project")
 library("ggplot2")
 library(readxl)
 library(naivebayes)
@@ -126,11 +125,6 @@ ggplot(data = melted_cormat.test, aes(x=X1, y=X2, fill=value)) +
 
 #<font color="blue">3) Method 1: Logistic regression</font>
 
-```{r}
-#To see how the data is distributed (proportions)
-naive_bayes(data2,data2$Lug_boot)
-```
-
 <h2><font color="teal">3.1) Generate randomly the training data and the test data</font></h2>
 ```{r}
 set.seed(3)
@@ -216,6 +210,8 @@ nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
 ```
 
 ```{r}
+#Choosing the optimal thresholds
+
 p <- plot_ly(dtrain, x = ~q$p1, y = ~q$p2, z = ~q$Precision,
         marker = list(color = ~q$p3, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE))
 layout(p,title = 'Logistic regression precision as a function of the probability thresholds',
@@ -231,7 +227,6 @@ layout(p,title = 'Logistic regression precision as a function of the probability
            showarrow = FALSE
          ))
          
-
 ```
 The red color scale applies to the values of threshold p3.
 
@@ -250,7 +245,7 @@ heatmap.train=heatmap.2(confusion.matrix,col=rev(heat.colors(100)),xlab="Trainin
 nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
 ```
 
-<h2><font color="teal">3.3) Performance of the model on the test data set</font></h2>
+<h2><font color="teal">3.3) Performance of the logistic regression model on the test data set</font></h2>
 ```{r}
 #test data
 
@@ -280,6 +275,11 @@ plot(lda.model1, pch = 20, col=as.integer(dtrain$value))
 lda.pred0=predict (lda.model1,dtrain)
 confusion_matrix_lda_training=table(lda.pred0$class,dtrain$value)
 sum(diag(confusion_matrix_lda_training))/nrow(dtrain)
+#LDA decomposition on training set
+LD1.train=ldahist(lda.pred0$x[,1],g=dtrain$value)
+LD2.train=ldahist(lda.pred0$x[,2],g=dtrain$value)
+LD3.train=ldahist(lda.pred0$x[,3],g=dtrain$value)
+
 
 #On test set
 lda.pred1=predict (lda.model1,dtest)
@@ -292,17 +292,7 @@ sum(diag(confusion_matrix_lda_test))/nrow(dtest)
 
 ```
 
-
-```{r}
-#QDA
-
-qda.fit <- qda(Value~ Doors, data = data3)
-qda.fit
-qda.class = predict (qda.fit,dtest)$class
-m<-table (qda.class, dtest$Value)
-m
-sum(diag(m))/nrow(dtest)
-```
+On our data set, quadratic discriminant analysis fails to perform, probably because our ...
 
 
 #<font color="blue">5) Method 3: K-nearest neighbors</font>
@@ -406,6 +396,7 @@ rownames(q)<-c()
 qmax<-subset(q, (q$Precision==max(q$Precision)))
 qmax
 ```
+Precision = ?
 
 ```{r}
 # 4 attributes (buying price, Doors, luggage boot,Safety)
@@ -444,63 +435,5 @@ p2=sum(diag(table.test.knn2))/sum(table.test.knn2)
 p2
 
 heatmap2=heatmap.2(table.test.knn2,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn2,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn2),colnames(table.test.knn2))
-
 ```
-
-```{r}
-# 3 attributes (buying price, maintenance price, doors)
-dtrain.knn3=data.frame(dtrain.knn$Buying_price,dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Value.knn)
-dtest.knn3=data.frame(dtest.knn$Buying_price,dtest.knn$Maintenance_price.knn,dtest.knn$Doors.knn,dtest.knn$Value.knn)
-dtrValue3=dtrain.knn3[,4]
-dteValue3=dtest.knn3[,4]
-results<-list()
-
-for (k in 1:20) {
-knn.pred3=knn(dtrain.knn3[,1:3],dtest.knn3[,1:3],dtrValue3,k)
-table.test.knn3=table (knn.pred3,dteValue3)
-p3=sum(diag(table.test.knn3))/sum(table.test.knn3)
-print(p3)
-results=c(results,list(c(k,p3)))
-  
-}
-q<-as.data.frame(results)
-q<-t(q) #transpose q
-q<-as.data.frame(q) #converts to data frame
-
-#Renaming rows and columns
-colnames(q)<-c("k","Precision")
-rownames(q)<-c()
-
-#Extracting the maximum precision and its associated K
-qmax<-subset(q, (q$Precision==max(q$Precision)))
-qmax
-```
-
-```{r}
-# 3 attributes (maintenance price, doors, luggage boot)
-dtrain.knn4=data.frame(dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Lug_boot.knn,dtrain.knn$Value.knn)
-dtest.knn4=data.frame(dtest.knn$Maintenance_price.knn,dtest.knn$Doors.knn,dtest.knn$Lug_boot.knn,dtest.knn$Value.knn)
-dtrValue4=dtrain.knn4[,4]
-dteValue4=dtest.knn4[,4]
-results<-list()
-
-for (k in 1:20) {
-knn.pred4=knn(dtrain.knn4[,1:3],dtest.knn4[,1:3],dtrValue4,k)
-table.test.knn4=table (knn.pred4,dteValue4)
-p4=sum(diag(table.test.knn4))/sum(table.test.knn4)
-results=c(results,list(c(k,p4)))
-  
-}
-q<-as.data.frame(results)
-q<-t(q) #transpose q
-q<-as.data.frame(q) #converts to data frame
-
-#Renaming rows and columns
-colnames(q)<-c("k","Precision")
-rownames(q)<-c()
-
-#Extracting the maximum precision and its associated K
-qmax<-subset(q, (q$Precision==max(q$Precision)))
-qmax
-
-```
+Precision = ?
