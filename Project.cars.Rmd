@@ -479,6 +479,48 @@ heatmap2=heatmap.2(table.test.knn2,col=rev(heat.colors(100)),xlab="Test_set",yla
 In this case, the highest precision is 69%. 
 
 
-#<font color="blue">5) Conclusions </font>
+#<font color="blue">5) Post-analysis </font>
+
+<h2><font color="teal">5.1) Summary </font></h2>
 
 Among the 3 classifiers that we tested, KNN succeeds in reaching the highest precision (KNN:92.6%; LDA:86.7%; LR:65.7%) and we decide to choose KNN because of its accuracy of prediction.
+
+<h2><font color="teal">5.2) Application of selected model on real examples </font></h2>
+
+We used data from four real cars: the 911 sports car, the Audi A2, a Golf and a Twingo. We tested our KNN algorithm with 6 attributes and k=3.
+
+```{r}
+#Constitute the same training set as before
+
+dtrain.knn.ex=data.frame(dtrain.knn$Buying_price,dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Persons.knn,dtrain.knn$Lug_boot.knn,dtrain.knn$Safety.knn,dtrain.knn$Value.knn)
+
+#Import the excel containing the examples and forming the test data frame
+
+examples<-read_xlsx("examples.xlsx")
+examples<-as.data.frame(examples)
+Safety.knn0=factor(examples$Safety, levels=c("low","med","high"),labels=c("0","1","2"))
+Buying_price.knn0=factor(examples$Buying_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Maintenance_price.knn0=factor(examples$Maintenance_price, levels=c("low","med","high","vhigh"),labels=c("0","1","2","4"))
+Doors.knn0=factor(examples$Doors, levels=c("2","3","4","5more"),labels=c("0","1","2","3"))
+Persons.knn0=factor(examples$Persons, levels=c("2","4","more"),labels=c("0","1","2"))
+Lug_boot.knn0=factor(examples$Lug_boot, levels=c("small","med","big"),labels=c("0","1","2"))
+Value.knn0=factor(examples$Value, levels=c("unacc","acc","good","vgood"),labels=c("1","2","3","4"))
+
+dtest.knn.ex=data.frame(Buying_price.knn0,Maintenance_price.knn0,Doors.knn0,Persons.knn0,Lug_boot.knn0,Safety.knn0,Value.knn0)
+
+
+dtrValue=dtrain.knn.ex[,7]
+dteValue=dtest.knn.ex[,7]
+
+#Apply our model to examples set
+
+set.seed(1)
+knn.pred.ex=knn(dtrain.knn.ex,dtest.knn.ex,dtrValue,k=3)
+table.test.knn.ex=table (knn.pred.ex,dteValue)
+table.test.knn.ex
+p0=sum(diag(table.test.knn.ex))/sum(table.test.knn.ex)
+p0
+
+heatmap=heatmap.2(table.test.knn0,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn.ex,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn.ex),colnames(table.test.knn.ex))
+CrossTable(dteValue,knn.pred.ex,prop.chisq = FALSE)
+```
