@@ -406,6 +406,7 @@ The limit of using KNN is that this approach cannot tell how will different sing
 
 
 <h2><font color="teal">4.3) Some other attempts </font></h2>
+
 We tried some other combinations and other numbers of predictors, but they give less good precisions:
 
 ```{r}
@@ -473,8 +474,6 @@ table.test.knn2=table (knn.pred2,dteValue2)
 table.test.knn2
 p2=sum(diag(table.test.knn2))/sum(table.test.knn2)
 p2
-
-heatmap2=heatmap.2(table.test.knn2,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn2,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn2),colnames(table.test.knn2))
 ```
 In this case, the highest precision is 69%. 
 
