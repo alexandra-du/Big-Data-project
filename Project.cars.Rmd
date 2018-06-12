@@ -1,5 +1,7 @@
 ---
 title: "Big Data project: Car evaluation"
+
+
 output:
   html_document: default
   pdf_document: default
@@ -518,6 +520,7 @@ knn.pred.ex=knn(dtrain.knn.ex,dtest.knn.ex,dtrValue,k=3)
 table.test.knn.ex=table (knn.pred.ex,dteValue)
 table.test.knn.ex
 p0=sum(diag(table.test.knn.ex))/sum(table.test.knn.ex)
+#Precision on our examples set 
 p0
 
 heatmap=heatmap.2(table.test.knn0,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn.ex,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn.ex),colnames(table.test.knn.ex))
