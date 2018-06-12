@@ -8,7 +8,7 @@ output:
 
 
 ```{r}
-library("ggplot2")
+library(ggplot2)
 library(readxl)
 library(naivebayes)
 library(plotly)
@@ -44,10 +44,15 @@ data$Safety<-factor(data$Safety, levels=c("low","med","high"))
 ```
 
 Description of the variables: 
+
 - Buying price and maintenance price: low, med, high, very high
+
 - Number of doors: 2, 3, 4, 5 or more
+
 - Max number of people: 2, 4, or more
+
 - Size of luggage boot: small, medium, big
+
 - Safety index: low, medium, high
 
 - Value of car: what we are trying to predict. Unacceptable, acceptable, good, very good
@@ -125,11 +130,12 @@ ggplot(data = melted_cormat.test, aes(x=X1, y=X2, fill=value)) +
   geom_tile()
 ```
 
-We see that - as we could expect - there is a correlation between the number of doors and the number of persons that can fit in
+We see that - as we could expect - after the data cleaning, there is a correlation between the number of doors and the number of persons that can fit in.
 
-#<font color="blue">3) Method 1: Logistic regression</font>
+#<font color="blue">2) Method 1: Logistic regression</font>
 
-<h2><font color="teal">3.1) Generate randomly the training data and the test data</font></h2>
+<h2><font color="teal">2.1) Generate randomly the training data and the test data</font></h2>
+
 ```{r}
 set.seed(3)
 size.dtrain<-floor(0.55*nrow(data2)) #we take 55% of the data as training data
@@ -142,7 +148,7 @@ dtest<-data2[-index.train,] #the remaining 45% are test data
 attach(dtrain)
 ```
 
-<h2><font color="teal">3.2) Model that includes the relevant parameters in predicting the value</font></h2>
+<h2><font color="teal">2.2) Model that includes the relevant parameters in predicting the value</font></h2>
 ```{r}
 glmfit<-glm(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh +Doors5+ Doors4 + Lug_boot, family=binomial,data=dtrain)
 
@@ -159,8 +165,8 @@ summary(glmfit)
 
 ```
 <h3>Conclusions:</h3> 
-Number of people totally irrelevant (p-value is too large)
-It appears that safety is irrelevant (p-value too large)
+- The number of people is totally irrelevant (p-value is too large).
+- It appears that safety is irrelevant (p-value too large).
 
 ```{r}
 #Function that returns the vector with associates to each car its predicted Value, depending on the chosen thresholds for the probabilities
@@ -234,7 +240,7 @@ layout(p,title = 'Logistic regression precision as a function of the probability
 ```
 The red color scale applies to the values of threshold p3.
 
-A maximum precision of 66.75% can be obtained on the training data set, which is better than the naive guess "all cars are unacceptable" (giving a precision of 63.97%).
+A maximum precision of 65.7% can be obtained on the training data set, which is better than the naive guess "all cars are unacceptable" (giving a precision of 64.7%).
 
 The confusion matrix associated with the chosen thresholds is:
 ```{r}
@@ -249,7 +255,8 @@ heatmap.train=heatmap.2(confusion.matrix,col=rev(heat.colors(100)),xlab="Trainin
 nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
 ```
 
-<h2><font color="teal">3.3) Performance of the logistic regression model on the test data set</font></h2>
+<h2><font color="teal">2.3) Performance of the logistic regression model on the test data set</font></h2>
+
 ```{r}
 #test data
 
@@ -267,7 +274,11 @@ nrow(subset(dtest,Value=="unacc"))/nrow(dtest)
 
 The model gives a precision of 60.34% on the test set.
 
-#<font color="blue">4) Method 2: Discriminant analysis</font>
+#<font color="blue">3) Method 2: Discriminant analysis</font>
+
+The size of the training set is 792 (55% of the whole data set) and the test set represents 45% of the whole data set.
+
+<h2><font color="teal">3.1) Performance of LDA on the training data set</font></h2>
 
 ```{r}
 # LDA on training/test set
@@ -283,8 +294,16 @@ sum(diag(confusion_matrix_lda_training))/nrow(dtrain)
 LD1.train=ldahist(lda.pred0$x[,1],g=dtrain$value)
 LD2.train=ldahist(lda.pred0$x[,2],g=dtrain$value)
 LD3.train=ldahist(lda.pred0$x[,3],g=dtrain$value)
+```
+
+On the training data set, the model can reach a precision of 89.9%.
+
+The first linear discriminant (LD1) performs best in separating different groups.
 
 
+<h2><font color="teal">3.2) Performance of LDA on the test data set</font></h2>
+
+```{r}
 #On test set
 lda.pred1=predict (lda.model1,dtest)
 confusion_matrix_lda_test=table(lda.pred1$class,dtest$value)
@@ -296,12 +315,16 @@ sum(diag(confusion_matrix_lda_test))/nrow(dtest)
 
 ```
 
-On our data set, quadratic discriminant analysis fails to perform, probably because our ...
+On the test set, the precision is 86.7%. 
+
+The model enables us to find correctly 90.2% of the unacceptable cars among all unacceptable ones in the test set, and according to the prediction, 98.1% of cars predicted as "unacceptable" are actually "unacceptable".
+
+Relatively, the model is less effective in identifying "acceptable" cars.
 
 
-#<font color="blue">5) Method 3: K-nearest neighbors</font>
+#<font color="blue">4) Method 3: K-nearest neighbors</font>
 
-<h2><font color="teal">5.1) Convert data frame into matrix</font></h2>
+<h2><font color="teal">4.1) Convert data frame into matrix</font></h2>
 ```{r}
 #Conversion of data frames into matrices
 
@@ -314,6 +337,7 @@ Lug_boot.knn=factor(data2$Lug_boot, levels=c("small","med","big"),labels=c("0","
 Value.knn=factor(data2$Value, levels=c("unacc","acc","good","vgood"),labels=c("1","2","3","4"))
 data.knn=data.frame(Safety.knn,Buying_price.knn,Maintenance_price.knn,Doors.knn,Persons.knn,Lug_boot.knn,Value.knn)
 ```
+The training set and the test set represent respectively 55% and 45% of the whole data set.
 
 ```{r}
 #Constitute training/test set from the previous matrices
@@ -325,6 +349,9 @@ dtrValue=dtrain.knn[,7]
 dteValue=dtest.knn[,7]
 ```
 
+<h2><font color="teal">4.2) Performance of KNN on the test set </font></h2>
+
+The size of the data set is large enough to involve all 6 attributes as predictors.
 
 ```{r}
 # 6 attributes
@@ -371,7 +398,16 @@ heatmap=heatmap.2(table.test.knn0,col=rev(heat.colors(100)),xlab="Test_set",ylab
 CrossTable(dteValue,knn.pred0,prop.chisq = FALSE)
 ```
 
+When selecting 6 attributes and a k equal to 3, a precision of 92.6% can be reached.
+
+The model is able to identify 94.9% of the unacceptable cars in the test set, which means there is only 5.1% of the possibility that a decision maker would choose to produce an unsellable car. Regarding the outcome of the prediction, 96.8% of cars are correctly classified as "unacceptable", which means there is a possibility of 3.2% that a decision maker will ignore an "acceptable" car.
+
+The limit of using KNN is that this approach cannot tell how will different single predictor influence the outcome.
+
+
+<h2><font color="teal">4.3) Some other attempts </font></h2>
 We tried some other combinations and other numbers of predictors, but they give less good precisions:
+
 ```{r}
 # 5 attributes (buying price, maintenance price, doors, luggage boot, safety)
 dtrain.knn1=data.frame(dtrain.knn$Buying_price,dtrain.knn$Maintenance_price.knn,dtrain.knn$Doors.knn,dtrain.knn$Lug_boot.knn,dtrain.knn$Safety.knn,dtrain.knn$Value.knn)
@@ -400,7 +436,7 @@ rownames(q)<-c()
 qmax<-subset(q, (q$Precision==max(q$Precision)))
 qmax
 ```
-Precision = ?
+In this case, the highest precision is 84.1%. 
 
 ```{r}
 # 4 attributes (buying price, Doors, luggage boot,Safety)
@@ -440,4 +476,9 @@ p2
 
 heatmap2=heatmap.2(table.test.knn2,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn2,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn2),colnames(table.test.knn2))
 ```
-Precision = ?
+In this case, the highest precision is 69%. 
+
+
+#<font color="blue">5) Conclusions </font>
+
+Among 3 classifiers, KNN succeeds in reaching the highest precision (KNN:92.6%; LDA:86.7%; LR:65.7%) and we decide to choose KNN because of its accuracy of prediction.
