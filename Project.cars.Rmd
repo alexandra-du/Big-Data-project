@@ -481,4 +481,4 @@ In this case, the highest precision is 69%.
 
 #<font color="blue">5) Conclusions </font>
 
-Among 3 classifiers, KNN succeeds in reaching the highest precision (KNN:92.6%; LDA:86.7%; LR:65.7%) and we decide to choose KNN because of its accuracy of prediction.
+Among the 3 classifiers that we tested, KNN succeeds in reaching the highest precision (KNN:92.6%; LDA:86.7%; LR:65.7%) and we decide to choose KNN because of its accuracy of prediction.
