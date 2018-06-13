@@ -153,7 +153,19 @@ dtest<-data2[-index.train,] #the remaining 45% are test data
 attach(dtrain)
 ```
 
-<h2><font color="teal">2.2) Model that includes the relevant parameters in predicting the value</font></h2>
+<h2><font color="teal">2.2) Model that includes all parameters in predicting the value</font></h2>
+
+
+
+
+
+<h3>Conclusions:</h3> 
+- The number of people is totally irrelevant (p-value is too large).
+- It appears that safety is irrelevant (p-value too large).
+- For the same attribute (for instance buying price), some levels (low and medium) have too large p-values whereas others (high and very high) have small enough p-values. In order to eliminate the irrelevant levels, we separated the corresponding levels into new boolean variables (see part 1.2).
+
+<h2><font color="teal">2.3) Model that includes only relevant parameters in predicting the value</font></h2>
+
 ```{r}
 glmfit<-glm(Value~ Buying_price_high + Buying_price_vhigh + Maintenance_price_high + Maintenance_price_vhigh +Doors5+ Doors4 + Lug_boot, family=binomial,data=dtrain)
 
@@ -169,10 +181,6 @@ p
 summary(glmfit)
 
 ```
-<h3>Conclusions:</h3> 
-- The number of people is totally irrelevant (p-value is too large).
-- It appears that safety is irrelevant (p-value too large).
-- For the same attribute (for instance buying price), some levels (low and medium) have too large p-values whereas others (high and very high) have small enough p-values. In order to eliminate the irrelevant levels, we separated the corresponding levels into new boolean variables (see part 1.2).
 
 We have 4 categories, so we need to set 3 thresholds for the predicted probability. The higher the latter is, the better the car's value is.
 
@@ -188,7 +196,7 @@ result.table<-function(p1,p2,p3,dframe){
   return(glm.pred)
 }
 
-#Function that optimizes the choice of thresholds:
+#Function that optimizes the choice of thresholds to achieve the highest precision:
 optimize<-function(p1,p2,p3,interval,dframe){
   results<-list()
   p1bis=p1
@@ -222,13 +230,10 @@ rownames(q)<-c()
 #Extracting the maximum precision and its associated threshold probability
 qmax<-subset(q, (q$Precision==max(q$Precision)))
 qmax
-
-#Proportion of unacc cars in the training set
-nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
 ```
 
 ```{r}
-#Choosing the optimal thresholds
+#Visualize the choice of the optimal thresholds
 
 p <- plot_ly(dtrain, x = ~q$p1, y = ~q$p2, z = ~q$Precision,
         marker = list(color = ~q$p3, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE))
@@ -259,9 +264,13 @@ precision=sum(diag(confusion.matrix))/nrow(dtrain)
 precision
 
 heatmap.train=heatmap.2(confusion.matrix,col=rev(heat.colors(100)),xlab="Training_set",ylab="Prediction",cellnote=confusion.matrix,notecol="black",trace="none",dendrogram="none",rownames(confusion.matrix),colnames(confusion.matrix))
+```
 
+We compare our result with the proportion of unacc cars in the training set, which is our naive predictor. (Naive guess: "predict all cars are unacceptable") Since this proportion is quite large, the naive guess would actually give a fairly good precision.
+```{r}
 nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
 ```
+The precision of our model is slightly better than the naive guess.
 
 <h2><font color="teal">2.3) Performance of the logistic regression model on the test data set</font></h2>
 
@@ -280,7 +289,8 @@ heatmap.test=heatmap.2(confusion.matrix.test,col=rev(heat.colors(100)),xlab="Tes
 nrow(subset(dtest,Value=="unacc"))/nrow(dtest)
 ```
 
-The model gives a precision of 60.34% on the test set.
+The model gives a precision of 60.34% on the test set, which is less good than the naive guess, so this method is not optimum.
+Particularly, our model does not differenciate well between acceptable and unacceptable cars, and is not very good at finding good/very good cars.
 
 #<font color="blue">3) Method 2: Discriminant analysis</font>
 
@@ -371,6 +381,7 @@ dtest.knn0=data.frame(dtest.knn$Buying_price,dtest.knn$Maintenance_price.knn,dte
 dtrValue=dtrain.knn[,7]
 dteValue=dtest.knn[,7]
 
+#To find the optimal k, we run a loop
 results<-list()
 for (k in 1:20) {
   set.seed(1)
@@ -408,7 +419,7 @@ CrossTable(dteValue,knn.pred0,prop.chisq = FALSE)
 
 When selecting 6 attributes and a k equal to 3, a precision of 92.6% can be reached.
 
-The model is able to identify 94.9% of the unacceptable cars in the test set, which means there is only 5.1% of the possibility that a decision maker would choose to produce an unsellable car. Regarding the outcome of the prediction, 96.8% of cars are correctly classified as "unacceptable", which means there is a possibility of 3.2% that a decision maker will ignore an "acceptable" car.
+The model is able to identify 94.9% of the unacceptable cars in the test set, which means there is only 5.1% of the possibility that a decision maker would wrongly choose to produce an unsellable car. Regarding the outcome of the prediction, 96.8% of cars are correctly classified as "unacceptable", which means there is a possibility of 3.2% that a decision maker will ignore an "acceptable" car.
 
 The limit of using KNN is that this approach cannot tell how will different single predictor influence the outcome.
 
@@ -532,3 +543,4 @@ p0
 heatmap=heatmap.2(table.test.knn0,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn.ex,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn.ex),colnames(table.test.knn.ex))
 CrossTable(dteValue,knn.pred.ex,prop.chisq = FALSE)
 ```
+The precision on this examples set is 75%.
