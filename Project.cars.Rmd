@@ -543,4 +543,4 @@ p0
 heatmap=heatmap.2(table.test.knn0,col=rev(heat.colors(100)),xlab="Test_set",ylab="Prediction",cellnote=table.test.knn.ex,notecol="black",trace="none",dendrogram="none",rownames(table.test.knn.ex),colnames(table.test.knn.ex))
 CrossTable(dteValue,knn.pred.ex,prop.chisq = FALSE)
 ```
-The precision on this examples set is 75%.
+The precision on this examples' set is 75%.
