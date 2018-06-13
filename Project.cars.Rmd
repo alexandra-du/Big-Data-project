@@ -1,5 +1,6 @@
 ---
 title: "Big Data project: Car evaluation"
+authors: "Alexandra DU - Thibaud VINANT - Chenyu YING - Loïc NEVOUET
 
 
 output:
@@ -24,7 +25,7 @@ library(gmodels)
 ggplot<-ggplot2::ggplot
 ```
 
-Source:
+Source of data set:
 
 http://archive.ics.uci.edu/ml/datasets/Car+Evaluation
 
@@ -91,6 +92,8 @@ Temporary conclusions:
 
 <h2><font color="teal">1.2) Data cleaning</font></h2>
 
+We removed the data that seemed illogical, namely the cars that have 4 or 5 doors but only a capacity of 2 people.
+As for the separation of the levels of some variables into new variables (such as Doors2 that contains a boolean according to whether or not a car has 2 doors), it is justified by our observations when running the logistic regression (see part 2).
 ```{r}
 #data preparation
 
@@ -169,6 +172,9 @@ summary(glmfit)
 <h3>Conclusions:</h3> 
 - The number of people is totally irrelevant (p-value is too large).
 - It appears that safety is irrelevant (p-value too large).
+- For the same attribute (for instance buying price), some levels (low and medium) have too large p-values whereas others (high and very high) have small enough p-values. In order to eliminate the irrelevant levels, we separated the corresponding levels into new boolean variables (see part 1.2).
+
+We have 4 categories, so we need to set 3 thresholds for the predicted probability. The higher the latter is, the better the car's value is.
 
 ```{r}
 #Function that returns the vector with associates to each car its predicted Value, depending on the chosen thresholds for the probabilities
@@ -182,7 +188,7 @@ result.table<-function(p1,p2,p3,dframe){
   return(glm.pred)
 }
 
-
+#Function that optimizes the choice of thresholds:
 optimize<-function(p1,p2,p3,interval,dframe){
   results<-list()
   p1bis=p1
