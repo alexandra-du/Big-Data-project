@@ -253,7 +253,7 @@ layout(p,title = 'Logistic regression precision as a function of the probability
 ```
 The red color scale applies to the values of threshold p3.
 
-A maximum precision of 65.7% can be obtained on the training data set, which is better than the naive guess "all cars are unacceptable" (giving a precision of 64.7%).
+A maximum precision of 65.7% can be obtained on the training data set.
 
 The confusion matrix associated with the chosen thresholds is:
 ```{r}
@@ -266,7 +266,7 @@ precision
 heatmap.train=heatmap.2(confusion.matrix,col=rev(heat.colors(100)),xlab="Training_set",ylab="Prediction",cellnote=confusion.matrix,notecol="black",trace="none",dendrogram="none",rownames(confusion.matrix),colnames(confusion.matrix))
 ```
 
-We compare our result with the proportion of unacc cars in the training set, which is our naive predictor. (Naive guess: "predict all cars are unacceptable") Since this proportion is quite large, the naive guess would actually give a fairly good precision.
+We compare our result with the proportion of unacc cars in the training set, which is our naive predictor. (Naive guess: "predict all cars are unacceptable") Since this proportion is quite large, the naive guess would actually give a fairly good precision:
 ```{r}
 nrow(subset(dtrain,Value=="unacc"))/nrow(dtrain)
 ```
@@ -314,7 +314,7 @@ LD2.train=ldahist(lda.pred0$x[,2],g=dtrain$value)
 LD3.train=ldahist(lda.pred0$x[,3],g=dtrain$value)
 ```
 
-On the training data set, the model can reach a precision of 89.9%.
+On the training data set, the model can reach a precision of 89.9%, which is better than the naive guess.
 
 The first linear discriminant (LD1) performs best in separating different groups.
 
@@ -333,7 +333,7 @@ sum(diag(confusion_matrix_lda_test))/nrow(dtest)
 
 ```
 
-On the test set, the precision is 86.7%. 
+On the test set, the precision is 86.7%, which is better than the naive guess.
 
 The model enables us to find correctly 90.2% of the unacceptable cars among all unacceptable ones in the test set, and according to the prediction, 98.1% of cars predicted as "unacceptable" are actually "unacceptable".
 
@@ -417,7 +417,7 @@ heatmap=heatmap.2(table.test.knn0,col=rev(heat.colors(100)),xlab="Test_set",ylab
 CrossTable(dteValue,knn.pred0,prop.chisq = FALSE)
 ```
 
-When selecting 6 attributes and a k equal to 3, a precision of 92.6% can be reached.
+When selecting 6 attributes and a k equal to 3, a precision of 92.6% can be reached on our test set, which is clearly better than the naive guess.
 
 The model is able to identify 94.9% of the unacceptable cars in the test set, which means there is only 5.1% of the possibility that a decision maker would wrongly choose to produce an unsellable car. Regarding the outcome of the prediction, 96.8% of cars are correctly classified as "unacceptable", which means there is a possibility of 3.2% that a decision maker will ignore an "acceptable" car.
 
